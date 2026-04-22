@@ -1,0 +1,77 @@
+name: benchmark-manual
+
+on:
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: "Benchmark preset (quick|ci|full)"
+        required: true
+        default: "ci"
+      strict:
+        description: "Enable strict gate"
+        required: true
+        default: "false"
+      threads:
+        description: "Threads for expr_method_bench (e.g. 1,2,4,8)"
+        required: true
+        default: "4"
+      seed:
+        description: "Random seed"
+        required: true
+        default: "42"
+
+jobs:
+  benchmark:
+    name: benchmark-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu
+            os: ubuntu-24.04
+          - name: windows
+            os: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cmake --build build -j
+
+      - name: Run chunk bench
+        shell: pwsh
+        run: |
+          $bin = if (Test-Path "./build/chunk_bench.exe") { "./build/chunk_bench.exe" } else { "./build/chunk_bench" }
+          $strictArgs = @()
+          if ("${{ inputs.strict }}" -eq "true") { $strictArgs += "--strict" }
+          & $bin --preset "${{ inputs.preset }}" --seed "${{ inputs.seed }}" --csv "chunk_${{ matrix.name }}_${{ inputs.preset }}.csv" @strictArgs
+
+      - name: Run expression bench
+        shell: pwsh
+        run: |
+          $bin = if (Test-Path "./build/expr_method_bench.exe") { "./build/expr_method_bench.exe" } else { "./build/expr_method_bench" }
+          $strictArgs = @()
+          if ("${{ inputs.strict }}" -eq "true") { $strictArgs += "--strict" }
+          & $bin --preset "${{ inputs.preset }}" --threads "${{ inputs.threads }}" --seed "${{ inputs.seed }}" --csv "expr_${{ matrix.name }}_${{ inputs.preset }}.csv" @strictArgs
+
+      - name: Upload benchmark csv
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ matrix.name }}-${{ inputs.preset }}
+          path: |
+            chunk_${{ matrix.name }}_${{ inputs.preset }}.csv
+            expr_${{ matrix.name }}_${{ inputs.preset }}.csv
+

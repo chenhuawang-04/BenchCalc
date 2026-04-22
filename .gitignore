@@ -1,0 +1,18 @@
+# Build outputs
+/build/
+/build-*/
+
+# Local benchmark outputs
+/*.csv
+
+# Windows binaries generated locally
+/*.exe
+
+# Visual Studio / CMake temp
+/.vs/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/compile_commands.json
+/Testing/
+
