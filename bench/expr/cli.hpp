@@ -42,7 +42,7 @@ inline CliOptions parse_args(int argc, char** argv) {
         else if (a == "--pin-cpu") o.pin_cpu = true;
         else if (a == "--high-priority") o.high_priority = true;
         else if (a == "--help" || a == "-h") {
-            std::cout << "expr_method_bench --preset quick|ci|full [--case key] [--csv out.csv] [--strict] "
+            std::cout << "expr_method_bench --preset quick|mt|ci|full [--case key] [--csv out.csv] [--strict] "
                          "[--strict-cv-threshold x] [--threads n] [--seed n] "
                          "[--warmup n] [--iterations n] [--target-ms x] [--max-repeat n] "
                          "[--randomize-order|--no-randomize-order] [--pin-cpu] [--high-priority]\n";
@@ -54,8 +54,8 @@ inline CliOptions parse_args(int argc, char** argv) {
     if (o.strict_cv_threshold <= 0.0 || !std::isfinite(o.strict_cv_threshold)) {
         throw std::runtime_error("strict-cv-threshold must be finite and > 0");
     }
-    if (o.preset != "quick" && o.preset != "ci" && o.preset != "full") {
-        throw std::runtime_error("preset must be quick|ci|full");
+    if (o.preset != "quick" && o.preset != "mt" && o.preset != "ci" && o.preset != "full") {
+        throw std::runtime_error("preset must be quick|mt|ci|full");
     }
     if (o.threads && *o.threads <= 0) {
         throw std::runtime_error("threads must be > 0");

@@ -9,6 +9,7 @@
 
 The benchmark framework has been upgraded with the following rigor/performance improvements:
 
+- added `Melosyne_ThreadCenter` as a git submodule (`external/Melosyne_ThreadCenter`)
 - multi-case/multi-thread **matrix workflow** (`.github/workflows/benchmark-matrix.yml`)
 - independent **process-level repeats** in CI matrix runs
 - per-method **95% CI** fields exported to CSV (`ci95_low_ms`, `ci95_high_ms`, `ci95_half_ms`)
@@ -59,6 +60,12 @@ Quick preset (non-strict):
 - `iterations=5`
 - `target_ms=25`
 - `max_repeat=16`
+
+Multi-thread preset:
+
+- `--preset mt`
+- representative thread counts in CI matrix: `1 / 2 / 4 / 8 / 16(max available)`
+- cases emphasize throughput and mixed operator patterns for multi-thread scaling
 
 ---
 
@@ -226,5 +233,5 @@ Run full matrix benchmark workflow (recommended for scientific comparison):
 
 ```bash
 gh workflow run benchmark-matrix.yml --ref master \
-  -f process_repeats=3 -f preset=ci -f run_gpu_lane=false
+  -f process_repeats=3 -f preset=mt -f run_gpu_lane=false
 ```

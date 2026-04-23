@@ -8,9 +8,9 @@ on:
         required: true
         default: "3"
       preset:
-        description: "Benchmark preset (ci|full)"
+        description: "Benchmark preset (mt|ci|full)"
         required: true
-        default: "ci"
+        default: "mt"
       run_gpu_lane:
         description: "Run self-hosted OpenCL GPU lane"
         required: true
@@ -21,7 +21,7 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PROCESS_REPEATS: ${{ github.event.inputs.process_repeats || '3' }}
-  BENCH_PRESET: ${{ github.event.inputs.preset || 'ci' }}
+  BENCH_PRESET: ${{ github.event.inputs.preset || 'mt' }}
 
 jobs:
   bench-matrix:
@@ -47,6 +47,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -76,13 +78,16 @@ jobs:
           $bin = if (Test-Path "./build/expr_method_bench.exe") { "./build/expr_method_bench.exe" } else { "./build/expr_method_bench" }
           New-Item -ItemType Directory -Path raw -Force | Out-Null
           $cases = @(
-            "expr_chunkpipe_64k_f64",
             "expr_chunkpipe_1m_f64",
             "expr_chunkpipe_1m_f32",
             "expr_chunkpipe_div_1m_f64",
-            "expr_chunkpipe_subdiv_1m_f32"
+            "expr_chunkpipe_subdiv_1m_f32",
+            "expr_chunkpipe_8m_f32"
           )
+          $hw = [Environment]::ProcessorCount
           $threadList = @(1,2,4,8)
+          if ($hw -gt 8) { $threadList += [Math]::Min(16, $hw) }
+          $threadList = $threadList | Sort-Object -Unique
           $repeats = [int]$env:PROCESS_REPEATS
           $preset = "$env:BENCH_PRESET"
           for ($r = 1; $r -le $repeats; $r++) {
@@ -120,6 +125,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -141,7 +148,7 @@ jobs:
         run: |
           $bin = if (Test-Path "./build/expr_method_bench.exe") { "./build/expr_method_bench.exe" } else { "./build/expr_method_bench" }
           New-Item -ItemType Directory -Path raw -Force | Out-Null
-          $cases = @("expr_chunkpipe_64k_f64", "expr_chunkpipe_1m_f64", "expr_chunkpipe_div_1m_f64")
+          $cases = @("expr_chunkpipe_1m_f64", "expr_chunkpipe_div_1m_f64")
           $threadList = @(1,2,4)
           $repeats = [int]$env:PROCESS_REPEATS
           $preset = "$env:BENCH_PRESET"

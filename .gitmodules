@@ -1,0 +1,3 @@
+[submodule "external/Melosyne_ThreadCenter"]
+	path = external/Melosyne_ThreadCenter
+	url = https://github.com/chenhuawang-04/Melosyne_ThreadCenter

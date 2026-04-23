@@ -41,6 +41,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Setup MSVC environment
         if: runner.os == 'Windows'
@@ -73,11 +75,34 @@ jobs:
             --randomize-order --pin-cpu --high-priority `
             --csv expr_quick_${{ matrix.name }}.csv
 
+      - name: Run representative multi-thread scenario (1/2/4/8)
+        shell: pwsh
+        run: |
+          $bin = if (Test-Path "./build/expr_method_bench.exe") { "./build/expr_method_bench.exe" } else { "./build/expr_method_bench" }
+          New-Item -ItemType Directory -Path mt_raw -Force | Out-Null
+          $hw = [Environment]::ProcessorCount
+          $threadList = @(1,2,4,8)
+          if ($hw -gt 8) { $threadList += [Math]::Min(16, $hw) }
+          $threadList = $threadList | Sort-Object -Unique
+          foreach ($th in $threadList) {
+            $seed = 20260423 + $th
+            & $bin --preset mt --case expr_chunkpipe_1m_f64 --seed $seed --threads $th `
+              --warmup 2 --iterations 12 --target-ms 120 --max-repeat 64 `
+              --randomize-order --pin-cpu --high-priority `
+              --csv "mt_raw/expr_mt_${{ matrix.name }}_t${th}.csv"
+          }
+          New-Item -ItemType Directory -Path mt_out -Force | Out-Null
+          python bench/tools/aggregate_expr.py --input-glob "mt_raw/*.csv" --output-dir mt_out --platform "${{ matrix.name }}-mt"
+
       - name: Upload quick csv
         uses: actions/upload-artifact@v5
         with:
           name: expr-quick-${{ matrix.name }}
-          path: expr_quick_${{ matrix.name }}.csv
+          path: |
+            expr_quick_${{ matrix.name }}.csv
+            mt_raw/*.csv
+            mt_out/*.csv
+            mt_out/*.md
 
   cross-compile-linux-arm64:
     name: cross-linux-aarch64
@@ -85,6 +110,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Install cross toolchain
         run: |
@@ -114,6 +141,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Configure (VS2022 ARM64)
         shell: pwsh
@@ -136,6 +165,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Configure (x86_64 + arm64)
         run: |

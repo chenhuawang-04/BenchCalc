@@ -23,12 +23,19 @@
 
 已完成框架补强（并未替换旧方案，而是并列增强）：
 
+- 已接入子模块：`external/Melosyne_ThreadCenter`
 - 新增 `benchmark-matrix.yml`（多 case / 多线程 / 多进程重复）
 - CSV 增加 95% 置信区间字段
 - 支持 `--pin-cpu` / `--high-priority` / 方法执行顺序随机化
 - 并行执行运行时改为可复用线程池
 - chunk/VM/graph 路径增加缓存与预分配优化
 - `hardcoded_plain_inplace_ams` 去除冗余复制路径
+
+新增多线程场景集：
+
+- 预设：`--preset mt`
+- 代表性线程数：`1 / 2 / 4 / 8 / 16(按机器上限裁剪)`
+- 保持对照组与实验组并列，重点观察多线程扩展性与稳定性
 
 ---
 

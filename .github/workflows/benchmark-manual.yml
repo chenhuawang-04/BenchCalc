@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       preset:
-        description: "Benchmark preset (quick|ci|full)"
+        description: "Benchmark preset (quick|mt|ci|full)"
         required: true
         default: "ci"
       strict:
@@ -39,6 +39,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Setup MSVC environment
         if: runner.os == 'Windows'

@@ -48,7 +48,7 @@ struct RunConfig {
 };
 
 struct CliOptions {
-    std::string preset = "quick"; // quick|ci|full
+    std::string preset = "quick"; // quick|mt|ci|full
     std::optional<std::string> case_filter;
     std::optional<std::string> csv_path;
     bool strict = false;
