@@ -24,19 +24,21 @@ void print_method_table(const std::vector<MethodResult<T>>& rs) {
     if (!std::isfinite(best)) best = 1.0;
 
     std::cout << std::left
-              << std::setw(28) << "method"
+              << std::setw(34) << "method"
               << std::setw(7) << "avail"
               << std::setw(8) << "ok"
               << std::setw(8) << "rep"
               << std::setw(10) << "prep"
               << std::setw(10) << "cold"
+              << std::setw(11) << "e2e@1"
+              << std::setw(11) << "e2e@10"
               << std::setw(11) << "trimmed"
               << std::setw(8) << "cv%"
               << std::setw(10) << "GElem/s"
               << std::setw(10) << "GFLOP/s"
               << std::setw(9) << "loss%"
               << "notes\n";
-    std::cout << std::string(120, '-') << "\n";
+    std::cout << std::string(150, '-') << "\n";
 
     for (const auto& r : rs) {
         std::string note;
@@ -51,12 +53,14 @@ void print_method_table(const std::vector<MethodResult<T>>& rs) {
         }
 
         std::cout << std::left
-                  << std::setw(28) << r.method
+                  << std::setw(34) << r.method
                   << std::setw(7) << (r.available ? "yes" : "no")
                   << std::setw(8) << (r.correct ? "yes" : "no")
                   << std::setw(8) << r.repeat
                   << std::setw(10) << (r.available ? format_double(r.prepare_ms, 3) : "-")
                   << std::setw(10) << (r.available ? format_double(r.cold_run_ms, 3) : "-")
+                  << std::setw(11) << (r.available ? format_double(r.e2e_n1_ms, 3) : "-")
+                  << std::setw(11) << (r.available ? format_double(r.e2e_n10_ms, 3) : "-")
                   << std::setw(11) << (r.available ? format_double(r.stats.trimmed_mean_ms, 4) : "-")
                   << std::setw(8) << (r.available ? format_double(r.stats.cv_percent, 2) : "-")
                   << std::setw(10) << (r.available ? format_double(r.gelem_per_s, 3) : "-")
@@ -67,4 +71,3 @@ void print_method_table(const std::vector<MethodResult<T>>& rs) {
 }
 
 } // namespace exprbench
-

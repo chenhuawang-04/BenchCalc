@@ -10,6 +10,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   native-build-and-test:
     name: native-${{ matrix.name }}
@@ -37,7 +40,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup MSVC environment
         if: runner.os == 'Windows'
@@ -78,7 +81,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install cross toolchain
         run: |
@@ -107,7 +110,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configure (VS2022 ARM64)
         shell: pwsh
@@ -129,7 +132,7 @@ jobs:
     runs-on: macos-14
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configure (x86_64 + arm64)
         run: |
@@ -145,4 +148,3 @@ jobs:
       - name: Verify universal binary
         run: |
           lipo -info build-universal/expr_method_bench
-

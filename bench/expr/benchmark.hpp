@@ -107,6 +107,11 @@ MethodResult<T> benchmark_method(IMethod<T>& method,
         mr.gelem_per_s = static_cast<double>(n) / sec / 1e9;
         mr.gflops = mr.gelem_per_s * static_cast<double>(flops_per_element);
     }
+
+    mr.e2e_n1_ms = mr.prepare_ms + mr.cold_run_ms;
+    mr.e2e_n10_ms = mr.prepare_ms + mr.cold_run_ms + mr.stats.trimmed_mean_ms * 9.0;
+    mr.e2e_n100_ms = mr.prepare_ms + mr.cold_run_ms + mr.stats.trimmed_mean_ms * 99.0;
+
     (void)sink;
     return mr;
 }
@@ -147,7 +152,7 @@ std::vector<MethodResult<T>> run_case_typed(const CaseConfig& cc, const RunConfi
     const int flops_per_element = estimate_flops_per_element(prog);
 
     std::vector<MethodResult<T>> out;
-    out.reserve(10);
+    out.reserve(16);
 
     auto run_one = [&](auto& method) {
         auto pst = std::chrono::high_resolution_clock::now();
@@ -161,6 +166,9 @@ std::vector<MethodResult<T>> run_case_typed(const CaseConfig& cc, const RunConfi
             std::is_same_v<T, float> ? 2e-3 : 1e-9,
             std::is_same_v<T, float> ? 5e-5 : 1e-10);
         mr.prepare_ms = pd.count();
+        mr.e2e_n1_ms = mr.prepare_ms + mr.cold_run_ms;
+        mr.e2e_n10_ms = mr.prepare_ms + mr.cold_run_ms + mr.stats.trimmed_mean_ms * 9.0;
+        mr.e2e_n100_ms = mr.prepare_ms + mr.cold_run_ms + mr.stats.trimmed_mean_ms * 99.0;
         out.push_back(std::move(mr));
     };
 
@@ -169,11 +177,27 @@ std::vector<MethodResult<T>> run_case_typed(const CaseConfig& cc, const RunConfi
         run_one(m);
     }
     {
-        ChunkPipelineMethod<T> m; // 保留既有版本，不被新版本替代
+        PlainLoop4Method<T> m; // 你要求的“最普通 for 循环四数组链式计算”
         run_one(m);
     }
     {
-        ChunkPipelinePeakMethod<T> m; // 补强版本，并列展示
+        PlainInplaceAmsMethod<T> m; // 你要求的“a[i]=... ”原地硬编码对照
+        run_one(m);
+    }
+    {
+        HardcodedInlineExactAmsMethod<T> m; // 纯内联上限：仅 ((a+b)*c)-d
+        run_one(m);
+    }
+    {
+        ChunkPipelineMethod<T> m; // 既有 chunk 方案
+        run_one(m);
+    }
+    {
+        ChunkPipelineFixed256Method<T> m; // 固定 chunk 对照
+        run_one(m);
+    }
+    {
+        ChunkPipelinePeakMethod<T> m; // 补强 chunk 方案
         run_one(m);
     }
     {
@@ -186,11 +210,11 @@ std::vector<MethodResult<T>> run_case_typed(const CaseConfig& cc, const RunConfi
     }
 #ifdef _WIN32
     {
-        OpenCLDynamicKernelMethod<T> m(false); // peak
+        OpenCLDynamicKernelMethod<T> m(false); // GPU peak
         run_one(m);
     }
     {
-        OpenCLDynamicKernelMethod<T> m(true); // e2e
+        OpenCLDynamicKernelMethod<T> m(true); // GPU e2e
         run_one(m);
     }
 #endif
@@ -198,4 +222,3 @@ std::vector<MethodResult<T>> run_case_typed(const CaseConfig& cc, const RunConfi
 }
 
 } // namespace exprbench
-

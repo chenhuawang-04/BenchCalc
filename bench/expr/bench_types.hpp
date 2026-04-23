@@ -24,6 +24,9 @@ struct MethodResult {
     TimingStats stats;
     double gelem_per_s = 0.0;
     double gflops = 0.0;
+    double e2e_n1_ms = 0.0;
+    double e2e_n10_ms = 0.0;
+    double e2e_n100_ms = 0.0;
 };
 
 struct CaseConfig {

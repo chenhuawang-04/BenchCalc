@@ -136,6 +136,113 @@ private:
     std::vector<T> out_;
 };
 
+template <typename T>
+class ChunkPipelineFixed256Method final : public IMethod<T> {
+public:
+    // 对照：禁用自动调优，只用固定 chunk=256
+    std::string name() const override { return "chunk_pipeline_nonjit_fixed256"; }
+
+    bool prepare(const Program& prog,
+                 const std::vector<std::vector<T>>& inputs,
+                 size_t n,
+                 int threads) override {
+        prog_ = &prog;
+        in_ = &inputs;
+        n_ = n;
+        threads_ = threads;
+        out_.assign(n_, T{});
+        stage2_.assign(n_, T{});
+        stage3_.assign(n_, T{});
+        avail_ = false;
+        reason_.clear();
+
+        p4_ = {};
+        if (!match_chunk_pipeline4(*prog_, p4_)) {
+            reason_ = "expression not supported by chunk pipeline pattern";
+            return false;
+        }
+        if (p4_.a < 0 || p4_.b < 0 || p4_.c < 0 || p4_.d < 0 ||
+            p4_.a >= static_cast<int>(in_->size()) ||
+            p4_.b >= static_cast<int>(in_->size()) ||
+            p4_.c >= static_cast<int>(in_->size()) ||
+            p4_.d >= static_cast<int>(in_->size())) {
+            reason_ = "invalid variable mapping for chunk pipeline";
+            return false;
+        }
+
+        fixed_chunk_ = std::min<size_t>(256, std::max<size_t>(1, n_));
+        avail_ = true;
+        return true;
+    }
+
+    bool available() const override { return avail_; }
+    std::string unavailable_reason() const override { return reason_; }
+
+    void run_validate(std::vector<T>& out) override {
+        run_once(fixed_chunk_);
+        out = out_;
+    }
+
+    double run_timed() override {
+        run_once(fixed_chunk_);
+        return sample_guard();
+    }
+
+private:
+    static inline T apply(NodeKind op, T lhs, T rhs) {
+        switch (op) {
+        case NodeKind::Add: return lhs + rhs;
+        case NodeKind::Sub: return lhs - rhs;
+        case NodeKind::Mul: return lhs * rhs;
+        case NodeKind::Div: return lhs / rhs;
+        default: return lhs;
+        }
+    }
+
+    void run_once(size_t chunk) {
+        const auto& a = (*in_)[p4_.a];
+        const auto& b = (*in_)[p4_.b];
+        const auto& c = (*in_)[p4_.c];
+        const auto& d = (*in_)[p4_.d];
+
+        parallel_for(n_, threads_, [&](size_t s, size_t e) {
+            for (size_t block = s; block < e; block += chunk) {
+                const size_t end = std::min(block + chunk, e);
+                for (size_t i = block; i < end; ++i) {
+                    stage2_[i] = apply(p4_.op1, a[i], b[i]);
+                }
+                for (size_t i = block; i < end; ++i) {
+                    stage3_[i] = apply(p4_.op2, stage2_[i], c[i]);
+                }
+                for (size_t i = block; i < end; ++i) {
+                    out_[i] = apply(p4_.op3, stage3_[i], d[i]);
+                }
+            }
+        });
+    }
+
+    double sample_guard() const {
+        if (out_.empty()) return 0.0;
+        size_t step = std::max<size_t>(1, out_.size() / 32);
+        double g = 0.0;
+        for (size_t i = 0; i < out_.size(); i += step) g += static_cast<double>(out_[i]);
+        return g;
+    }
+
+private:
+    const Program* prog_ = nullptr;
+    const std::vector<std::vector<T>>* in_ = nullptr;
+    size_t n_ = 0;
+    int threads_ = 1;
+    bool avail_ = false;
+    std::string reason_;
+    ChunkPipeline4Pattern p4_{};
+    size_t fixed_chunk_ = 256;
+    std::vector<T> stage2_;
+    std::vector<T> stage3_;
+    std::vector<T> out_;
+};
+
 template <NodeKind Op, typename T>
 struct ChunkOp;
 template <typename T>
@@ -314,4 +421,3 @@ private:
 };
 
 } // namespace exprbench
-

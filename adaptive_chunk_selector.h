@@ -6,9 +6,13 @@
 #include <chrono>
 #include <cstddef>
 #include <cmath>
+#include <cstdio>
 
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #endif
 
 /**

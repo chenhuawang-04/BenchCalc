@@ -49,6 +49,9 @@ int main(int argc, char** argv) {
             int repeat = 0;
             double prepare_ms = 0;
             double cold_run_ms = 0;
+            double e2e_n1_ms = 0;
+            double e2e_n10_ms = 0;
+            double e2e_n100_ms = 0;
             double trimmed = 0;
             double cv = 0;
             double gelem_per_s = 0;
@@ -67,7 +70,7 @@ int main(int argc, char** argv) {
                 print_method_table(rs);
                 for (const auto& r : rs) {
                     csv_rows.push_back({cc.id, to_string(cc.input_profile), r.method, "float", r.available, r.correct, r.repeat,
-                                        r.prepare_ms, r.cold_run_ms, r.stats.trimmed_mean_ms, r.stats.cv_percent,
+                                        r.prepare_ms, r.cold_run_ms, r.e2e_n1_ms, r.e2e_n10_ms, r.e2e_n100_ms, r.stats.trimmed_mean_ms, r.stats.cv_percent,
                                         r.gelem_per_s, r.gflops, r.max_abs_err, r.max_rel_err, r.reason});
                     if (opt.strict && r.available &&
                         (!r.correct || (r.correct && r.stats.cv_percent > opt.strict_cv_threshold))) {
@@ -80,7 +83,7 @@ int main(int argc, char** argv) {
                 print_method_table(rs);
                 for (const auto& r : rs) {
                     csv_rows.push_back({cc.id, to_string(cc.input_profile), r.method, "double", r.available, r.correct, r.repeat,
-                                        r.prepare_ms, r.cold_run_ms, r.stats.trimmed_mean_ms, r.stats.cv_percent,
+                                        r.prepare_ms, r.cold_run_ms, r.e2e_n1_ms, r.e2e_n10_ms, r.e2e_n100_ms, r.stats.trimmed_mean_ms, r.stats.cv_percent,
                                         r.gelem_per_s, r.gflops, r.max_abs_err, r.max_rel_err, r.reason});
                     if (opt.strict && r.available &&
                         (!r.correct || (r.correct && r.stats.cv_percent > opt.strict_cv_threshold))) {
@@ -93,7 +96,7 @@ int main(int argc, char** argv) {
         if (opt.csv_path) {
             std::ofstream ofs(*opt.csv_path, std::ios::binary | std::ios::trunc);
             ofs << "\xEF\xBB\xBF";
-            ofs << "case_id,input_profile,method,type,available,correct,repeat,prepare_ms,cold_run_ms,trimmed_mean_ms,cv_percent,gelem_per_s,gflops,max_abs_err,max_rel_err,reason\n";
+            ofs << "case_id,input_profile,method,type,available,correct,repeat,prepare_ms,cold_run_ms,e2e_n1_ms,e2e_n10_ms,e2e_n100_ms,trimmed_mean_ms,cv_percent,gelem_per_s,gflops,max_abs_err,max_rel_err,reason\n";
             for (const auto& row : csv_rows) {
                 ofs << csv_escape(row.case_id) << ","
                     << row.input_profile << ","
@@ -104,6 +107,9 @@ int main(int argc, char** argv) {
                     << row.repeat << ","
                     << row.prepare_ms << ","
                     << row.cold_run_ms << ","
+                    << row.e2e_n1_ms << ","
+                    << row.e2e_n10_ms << ","
+                    << row.e2e_n100_ms << ","
                     << row.trimmed << ","
                     << row.cv << ","
                     << row.gelem_per_s << ","

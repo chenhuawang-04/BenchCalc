@@ -20,6 +20,9 @@ on:
         required: true
         default: "42"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   benchmark:
     name: benchmark-${{ matrix.name }}
@@ -35,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup MSVC environment
         if: runner.os == 'Windows'
@@ -74,4 +77,3 @@ jobs:
           path: |
             chunk_${{ matrix.name }}_${{ inputs.preset }}.csv
             expr_${{ matrix.name }}_${{ inputs.preset }}.csv
-

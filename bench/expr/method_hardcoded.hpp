@@ -147,4 +147,85 @@ private:
     std::vector<T> out_;
 };
 
+template <typename T>
+class HardcodedInlineExactAmsMethod final : public IMethod<T> {
+public:
+    // 纯内联硬编码上限：仅支持 ((a+b)*c)-d，循环内无算子分支
+    std::string name() const override { return "hardcoded_inline_exact_ams"; }
+
+    bool prepare(const Program& prog,
+                 const std::vector<std::vector<T>>& inputs,
+                 size_t n,
+                 int threads) override {
+        prog_ = &prog;
+        in_ = &inputs;
+        n_ = n;
+        threads_ = threads;
+        out_.assign(n_, T{});
+        avail_ = false;
+        reason_.clear();
+        p4_ = {};
+
+        if (!match_chunk_pipeline4(*prog_, p4_)) {
+            reason_ = "exact baseline only supports chunk pipeline pattern";
+            return false;
+        }
+        if (!(p4_.op1 == NodeKind::Add && p4_.op2 == NodeKind::Mul && p4_.op3 == NodeKind::Sub)) {
+            reason_ = "exact baseline only supports ((a+b)*c)-d";
+            return false;
+        }
+        if (p4_.a < 0 || p4_.b < 0 || p4_.c < 0 || p4_.d < 0 ||
+            p4_.a >= static_cast<int>(in_->size()) ||
+            p4_.b >= static_cast<int>(in_->size()) ||
+            p4_.c >= static_cast<int>(in_->size()) ||
+            p4_.d >= static_cast<int>(in_->size())) {
+            reason_ = "invalid variable mapping for exact baseline";
+            return false;
+        }
+        avail_ = true;
+        return true;
+    }
+
+    bool available() const override { return avail_; }
+    std::string unavailable_reason() const override { return reason_; }
+    void run_validate(std::vector<T>& out) override {
+        run_once();
+        out = out_;
+    }
+    double run_timed() override {
+        run_once();
+        return sample_guard();
+    }
+
+private:
+    void run_once() {
+        const auto& a = (*in_)[p4_.a];
+        const auto& b = (*in_)[p4_.b];
+        const auto& c = (*in_)[p4_.c];
+        const auto& d = (*in_)[p4_.d];
+        parallel_for(n_, threads_, [&](size_t s, size_t eidx) {
+            for (size_t i = s; i < eidx; ++i) {
+                out_[i] = (a[i] + b[i]) * c[i] - d[i];
+            }
+        });
+    }
+    double sample_guard() const {
+        if (out_.empty()) return 0.0;
+        size_t step = std::max<size_t>(1, out_.size() / 32);
+        double g = 0.0;
+        for (size_t i = 0; i < out_.size(); i += step) g += static_cast<double>(out_[i]);
+        return g;
+    }
+
+private:
+    const Program* prog_ = nullptr;
+    const std::vector<std::vector<T>>* in_ = nullptr;
+    size_t n_ = 0;
+    int threads_ = 1;
+    bool avail_ = false;
+    std::string reason_;
+    ChunkPipeline4Pattern p4_{};
+    std::vector<T> out_;
+};
+
 } // namespace exprbench
