@@ -1,7 +1,8 @@
 # BenchCalc: Expression Execution Performance Report (CI Baseline)
 
 > Last updated: 2026-04-23  
-> Scope: rigorous comparison of expression execution methods (hardcoded baselines, non-JIT dynamic engines, VM, graph executor, GPU dynamic kernel path)
+> Scope: rigorous comparison of expression execution methods (hardcoded baselines, non-JIT dynamic engines, VM, graph executor, GPU dynamic kernel path)  
+> Encoding: UTF-8
 
 ---
 
@@ -26,7 +27,7 @@ These upgrades are additive; old and new methods remain shown in parallel.
 
 This report is based on CI artifacts from:
 
-- Primary benchmark run (contains the current method set): **`24814250081`**
+- Primary benchmark run (contains the original method-set report): **`24814250081`**
 - Reference run (workflow-only upgrade, no performance-code change): **`24814481683`** (success)
 
 CSV artifacts used:
@@ -235,3 +236,61 @@ Run full matrix benchmark workflow (recommended for scientific comparison):
 gh workflow run benchmark-matrix.yml --ref master \
   -f process_repeats=3 -f preset=mt -f run_gpu_lane=false
 ```
+
+---
+
+## 12) Added Multi-thread Analysis (kept on top of previous report, not replacing it)
+
+This section appends new results from **run `24816296924`** and keeps Sections 1–11 intact.
+
+### 12.1 Data used
+
+- `cloud_artifacts_24816296924/expr-quick-*/expr_quick_*.csv`
+- `cloud_artifacts_24816296924/expr-quick-*/mt_raw/*.csv`
+- `cloud_artifacts_24816296924/expr-quick-*/mt_out/expr_matrix_summary.csv`
+
+### 12.2 Quick-case update (`expr_chunkpipe_64k_f64`, threads=2)
+
+| method | macos-clang | ubuntu-clang | ubuntu-gcc | windows-msvc |
+|---|---:|---:|---:|---:|
+| hardcoded_plain_loop4 | 0.025593 | 0.032665 | 0.074957 | 0.050253 |
+| hardcoded_inline_exact_ams | 0.036821 | 0.067933 | 0.091069 | **0.034180** |
+| hardcoded_plain_inplace_ams | 0.035567 | 0.040020 | 0.083468 | 0.066797 |
+| chunk_pipeline_nonjit_peak | 0.043032 | 0.088128 | 0.132213 | 0.054856 |
+| chunk_pipeline_nonjit | 0.094397 | 0.224157 | 0.131615 | 0.230792 |
+| vm_register | 0.393743 | 0.669972 | 0.579256 | 0.618449 |
+| graph_fused_kernellib | 0.251772 | 0.493494 | 0.431648 | 0.737514 |
+
+Observation:
+
+- macOS / Ubuntu-* still favor `hardcoded_plain_loop4`
+- Windows-MSVC favors `hardcoded_inline_exact_ams` (~1.47x vs plain_loop4)
+
+### 12.3 Representative MT scenario (`expr_chunkpipe_1m_f64`, threads=1/2/4/8)
+
+Best method by platform/thread:
+
+| platform | t1 | t2 | t4 | t8 |
+|---|---|---|---|---|
+| macos-clang | hardcoded_plain_loop4 (0.6397 ms) | hardcoded_plain_loop4 (0.6476 ms) | hardcoded_plain_inplace_ams (0.6679 ms) | hardcoded_plain_loop4 (0.6428 ms) |
+| ubuntu-clang | hardcoded_inline_exact_ams (0.7419 ms) | hardcoded_plain_loop4 (0.7047 ms) | hardcoded_inline_exact_ams (0.4938 ms) | hardcoded_inline_exact_ams (0.5394 ms) |
+| ubuntu-gcc | hardcoded_inline_exact_ams (1.8875 ms) | hardcoded_inline_exact_ams (1.7503 ms) | hardcoded_inline_exact_ams (0.9459 ms) | hardcoded_inline_exact_ams (0.8876 ms) |
+| windows-msvc | hardcoded_inline_exact_ams (0.7663 ms) | hardcoded_inline_exact_ams (0.6122 ms) | hardcoded_inline_exact_ams (0.4462 ms) | hardcoded_inline_exact_ams (0.4282 ms) |
+
+Cross-platform geometric scaling (speedup vs thread=1):
+
+| method | t1 | t2 | t4 | t8 |
+|---|---:|---:|---:|---:|
+| hardcoded_plain_loop4 | 1.000x | 0.999x | 0.934x | 0.987x |
+| hardcoded_inline_exact_ams | 1.000x | 1.075x | 1.466x | 1.481x |
+| chunk_pipeline_nonjit_peak | 1.000x | 1.098x | 1.421x | 1.442x |
+| vm_register | 1.000x | 1.237x | 2.265x | 2.209x |
+| graph_fused_kernellib | 1.000x | 1.132x | 1.810x | 1.881x |
+
+### 12.4 Statistical caution
+
+In this specific `ci-multi-platform` run, the MT summary usually has `samples=1` per `(platform,thread,method)` at process level.  
+So this section is valid for trend comparison, but not final significance claims across process-level variance.
+
+For strict statistical confidence, run `benchmark-matrix.yml` with `process_repeats >= 3` (preferably 5).
+
