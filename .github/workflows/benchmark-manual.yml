@@ -71,7 +71,7 @@ jobs:
           & $bin --preset "${{ inputs.preset }}" --threads "${{ inputs.threads }}" --seed "${{ inputs.seed }}" --csv "expr_${{ matrix.name }}_${{ inputs.preset }}.csv" @strictArgs
 
       - name: Upload benchmark csv
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-${{ matrix.name }}-${{ inputs.preset }}
           path: |

@@ -71,7 +71,7 @@ jobs:
           & $bin --preset quick --case expr_chunkpipe_64k_f64 --seed 42 --threads 2 --csv expr_quick_${{ matrix.name }}.csv
 
       - name: Upload quick csv
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: expr-quick-${{ matrix.name }}
           path: expr_quick_${{ matrix.name }}.csv
