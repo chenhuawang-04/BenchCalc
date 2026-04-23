@@ -1,0 +1,174 @@
+name: benchmark-matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      process_repeats:
+        description: "Independent process repeats per (case,threads)"
+        required: true
+        default: "3"
+      preset:
+        description: "Benchmark preset (ci|full)"
+        required: true
+        default: "ci"
+      run_gpu_lane:
+        description: "Run self-hosted OpenCL GPU lane"
+        required: true
+        default: "false"
+  schedule:
+    - cron: "0 18 * * 1"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PROCESS_REPEATS: ${{ github.event.inputs.process_repeats || '3' }}
+  BENCH_PRESET: ${{ github.event.inputs.preset || 'ci' }}
+
+jobs:
+  bench-matrix:
+    name: bench-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-gcc
+            os: ubuntu-24.04
+            cc: gcc
+            cxx: g++
+          - name: windows-msvc
+            os: windows-2022
+            cc: cl
+            cxx: cl
+          - name: macos-clang
+            os: macos-14
+            cc: clang
+            cxx: clang++
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure (Ninja + Release)
+        shell: pwsh
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cmake --build build --config Release -j
+
+      - name: Run benchmark matrix with independent process repeats
+        shell: pwsh
+        run: |
+          $bin = if (Test-Path "./build/expr_method_bench.exe") { "./build/expr_method_bench.exe" } else { "./build/expr_method_bench" }
+          New-Item -ItemType Directory -Path raw -Force | Out-Null
+          $cases = @(
+            "expr_chunkpipe_64k_f64",
+            "expr_chunkpipe_1m_f64",
+            "expr_chunkpipe_1m_f32",
+            "expr_chunkpipe_div_1m_f64",
+            "expr_chunkpipe_subdiv_1m_f32"
+          )
+          $threadList = @(1,2,4,8)
+          $repeats = [int]$env:PROCESS_REPEATS
+          $preset = "$env:BENCH_PRESET"
+          for ($r = 1; $r -le $repeats; $r++) {
+            foreach ($caseId in $cases) {
+              foreach ($th in $threadList) {
+                $seed = 20260423 + $r * 101 + $th
+                $out = "raw/expr_${caseId}_t${th}_r${r}.csv"
+                & $bin --preset $preset --case $caseId --threads $th --seed $seed `
+                  --warmup 3 --iterations 20 --target-ms 180 --max-repeat 64 `
+                  --randomize-order --pin-cpu --high-priority `
+                  --csv $out
+              }
+            }
+          }
+
+      - name: Aggregate summary with 95% CI
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path out -Force | Out-Null
+          python bench/tools/aggregate_expr.py --input-glob "raw/*.csv" --output-dir out --platform "${{ matrix.name }}"
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: bench-matrix-${{ matrix.name }}
+          path: |
+            raw/*.csv
+            out/*.csv
+            out/*.md
+
+  bench-gpu-opencl:
+    name: bench-gpu-opencl
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_gpu_lane == 'true' }}
+    runs-on: [self-hosted, gpu, opencl]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Configure (Ninja + Release)
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cmake --build build --config Release -j
+
+      - name: Run GPU benchmark lane
+        shell: pwsh
+        run: |
+          $bin = if (Test-Path "./build/expr_method_bench.exe") { "./build/expr_method_bench.exe" } else { "./build/expr_method_bench" }
+          New-Item -ItemType Directory -Path raw -Force | Out-Null
+          $cases = @("expr_chunkpipe_64k_f64", "expr_chunkpipe_1m_f64", "expr_chunkpipe_div_1m_f64")
+          $threadList = @(1,2,4)
+          $repeats = [int]$env:PROCESS_REPEATS
+          $preset = "$env:BENCH_PRESET"
+          for ($r = 1; $r -le $repeats; $r++) {
+            foreach ($caseId in $cases) {
+              foreach ($th in $threadList) {
+                $seed = 20260423 + $r * 101 + $th
+                $out = "raw/expr_${caseId}_t${th}_r${r}.csv"
+                & $bin --preset $preset --case $caseId --threads $th --seed $seed `
+                  --warmup 3 --iterations 22 --target-ms 200 --max-repeat 64 `
+                  --randomize-order --pin-cpu --high-priority `
+                  --csv $out
+              }
+            }
+          }
+
+      - name: Aggregate GPU lane summary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path out -Force | Out-Null
+          python bench/tools/aggregate_expr.py --input-glob "raw/*.csv" --output-dir out --platform "gpu-opencl"
+
+      - name: Upload GPU artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: bench-matrix-gpu-opencl
+          path: |
+            raw/*.csv
+            out/*.csv
+            out/*.md

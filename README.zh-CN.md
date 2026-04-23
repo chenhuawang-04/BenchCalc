@@ -21,6 +21,15 @@
 - `double` + `signed` 输入
 - `threads=2`，`seed=42`
 
+已完成框架补强（并未替换旧方案，而是并列增强）：
+
+- 新增 `benchmark-matrix.yml`（多 case / 多线程 / 多进程重复）
+- CSV 增加 95% 置信区间字段
+- 支持 `--pin-cpu` / `--high-priority` / 方法执行顺序随机化
+- 并行执行运行时改为可复用线程池
+- chunk/VM/graph 路径增加缓存与预分配优化
+- `hardcoded_plain_inplace_ams` 去除冗余复制路径
+
 ---
 
 ## 关键结论
@@ -31,4 +40,3 @@
 4. GPU 动态核方法已纳入统一框架，但当前 CI runner 无 OpenCL 平台，因此显示 unavailable。  
 
 详细表格、指标与方法学说明请查看英文默认报告：[`README.md`](./README.md)。
-

@@ -33,6 +33,7 @@ void print_method_table(const std::vector<MethodResult<T>>& rs) {
               << std::setw(11) << "e2e@1"
               << std::setw(11) << "e2e@10"
               << std::setw(11) << "trimmed"
+              << std::setw(10) << "ci95±"
               << std::setw(8) << "cv%"
               << std::setw(10) << "GElem/s"
               << std::setw(10) << "GFLOP/s"
@@ -62,6 +63,7 @@ void print_method_table(const std::vector<MethodResult<T>>& rs) {
                   << std::setw(11) << (r.available ? format_double(r.e2e_n1_ms, 3) : "-")
                   << std::setw(11) << (r.available ? format_double(r.e2e_n10_ms, 3) : "-")
                   << std::setw(11) << (r.available ? format_double(r.stats.trimmed_mean_ms, 4) : "-")
+                  << std::setw(10) << (r.available ? format_double(r.stats.ci95_half_ms, 4) : "-")
                   << std::setw(8) << (r.available ? format_double(r.stats.cv_percent, 2) : "-")
                   << std::setw(10) << (r.available ? format_double(r.gelem_per_s, 3) : "-")
                   << std::setw(10) << (r.available ? format_double(r.gflops, 2) : "-")

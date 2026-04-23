@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <condition_variable>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -32,7 +33,9 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <atomic>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <mutex>

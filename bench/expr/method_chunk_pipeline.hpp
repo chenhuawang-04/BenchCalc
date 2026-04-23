@@ -4,6 +4,41 @@
 
 namespace exprbench {
 
+inline std::string chunk_cache_key(const ChunkPipeline4Pattern& p4, size_t n, int threads, const char* tag) {
+    std::ostringstream oss;
+    oss << tag << "|n=" << n
+        << "|th=" << threads
+        << "|a=" << p4.a << "|b=" << p4.b << "|c=" << p4.c << "|d=" << p4.d
+        << "|op1=" << static_cast<int>(p4.op1)
+        << "|op2=" << static_cast<int>(p4.op2)
+        << "|op3=" << static_cast<int>(p4.op3);
+    return oss.str();
+}
+
+inline std::unordered_map<std::string, size_t>& chunk_cache_map() {
+    static std::unordered_map<std::string, size_t> cache;
+    return cache;
+}
+
+inline std::mutex& chunk_cache_mutex() {
+    static std::mutex mu;
+    return mu;
+}
+
+inline std::optional<size_t> lookup_chunk_cache(const std::string& key) {
+    std::lock_guard<std::mutex> lk(chunk_cache_mutex());
+    auto& cache = chunk_cache_map();
+    auto it = cache.find(key);
+    if (it == cache.end()) return std::nullopt;
+    return it->second;
+}
+
+inline void store_chunk_cache(const std::string& key, size_t value) {
+    std::lock_guard<std::mutex> lk(chunk_cache_mutex());
+    auto& cache = chunk_cache_map();
+    cache[key] = value;
+}
+
 template <typename T>
 class ChunkPipelineMethod final : public IMethod<T> {
 public:
@@ -39,7 +74,15 @@ public:
             return false;
         }
 
-        best_chunk_ = tune_chunk();
+        {
+            const std::string key = chunk_cache_key(p4_, n_, threads_, "chunk_pipeline_nonjit");
+            if (auto cached = lookup_chunk_cache(key); cached.has_value()) {
+                best_chunk_ = *cached;
+            } else {
+                best_chunk_ = tune_chunk();
+                store_chunk_cache(key, best_chunk_);
+            }
+        }
         avail_ = true;
         return true;
     }
@@ -288,7 +331,15 @@ public:
             return false;
         }
 
-        best_chunk_ = tune_chunk_robust();
+        {
+            const std::string key = chunk_cache_key(p4_, n_, threads_, "chunk_pipeline_nonjit_peak");
+            if (auto cached = lookup_chunk_cache(key); cached.has_value()) {
+                best_chunk_ = *cached;
+            } else {
+                best_chunk_ = tune_chunk_robust();
+                store_chunk_cache(key, best_chunk_);
+            }
+        }
         avail_ = true;
         return true;
     }

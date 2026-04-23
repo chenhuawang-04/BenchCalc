@@ -1,24 +1,32 @@
 #pragma once
 
 #include "method_interface.hpp"
+#include <cstring>
 
 namespace exprbench {
 
 template <NodeKind Op, typename T>
 struct PlainLoopOp;
 template <typename T>
-struct PlainLoopOp<NodeKind::Add, T> { static inline T eval(T a, T b) { return a + b; } };
+struct PlainLoopOp<NodeKind::Add, T> {
+    static inline T eval(T a, T b) { return a + b; }
+};
 template <typename T>
-struct PlainLoopOp<NodeKind::Sub, T> { static inline T eval(T a, T b) { return a - b; } };
+struct PlainLoopOp<NodeKind::Sub, T> {
+    static inline T eval(T a, T b) { return a - b; }
+};
 template <typename T>
-struct PlainLoopOp<NodeKind::Mul, T> { static inline T eval(T a, T b) { return a * b; } };
+struct PlainLoopOp<NodeKind::Mul, T> {
+    static inline T eval(T a, T b) { return a * b; }
+};
 template <typename T>
-struct PlainLoopOp<NodeKind::Div, T> { static inline T eval(T a, T b) { return a / b; } };
+struct PlainLoopOp<NodeKind::Div, T> {
+    static inline T eval(T a, T b) { return a / b; }
+};
 
 template <typename T>
 class PlainLoop4Method final : public IMethod<T> {
 public:
-    // 对照组：最普通的 4 数组单循环硬编码，不分块、不调优
     std::string name() const override { return "hardcoded_plain_loop4"; }
 
     bool prepare(const Program& prog,
@@ -65,16 +73,16 @@ public:
 private:
     template <NodeKind Op1, NodeKind Op2, NodeKind Op3>
     void run_ops() {
-        const auto& a = (*in_)[p4_.a];
-        const auto& b = (*in_)[p4_.b];
-        const auto& c = (*in_)[p4_.c];
-        const auto& d = (*in_)[p4_.d];
+        const T* ap = (*in_)[p4_.a].data();
+        const T* bp = (*in_)[p4_.b].data();
+        const T* cp = (*in_)[p4_.c].data();
+        const T* dp = (*in_)[p4_.d].data();
+        T* op = out_.data();
 
-        // 最普通单循环：for(i) out[i] = ((a op b) op c) op d
         for (size_t i = 0; i < n_; ++i) {
-            const T t1 = PlainLoopOp<Op1, T>::eval(a[i], b[i]);
-            const T t2 = PlainLoopOp<Op2, T>::eval(t1, c[i]);
-            out_[i] = PlainLoopOp<Op3, T>::eval(t2, d[i]);
+            const T t1 = PlainLoopOp<Op1, T>::eval(ap[i], bp[i]);
+            const T t2 = PlainLoopOp<Op2, T>::eval(t1, cp[i]);
+            op[i] = PlainLoopOp<Op3, T>::eval(t2, dp[i]);
         }
     }
 
@@ -131,7 +139,6 @@ private:
 template <typename T>
 class PlainInplaceAmsMethod final : public IMethod<T> {
 public:
-    // 你要求的最普通原地硬编码：a[i] = (a[i] + b[i]) * c[i] - d[i]
     std::string name() const override { return "hardcoded_plain_inplace_ams"; }
 
     bool prepare(const Program& prog,
@@ -146,7 +153,6 @@ public:
         p4_ = {};
         out_.assign(n_, T{});
         a_base_.assign(n_, T{});
-        a_work_.assign(n_, T{});
 
         if (!match_chunk_pipeline4(*prog_, p4_)) {
             reason_ = "inplace ams baseline only supports chunk pipeline pattern";
@@ -185,16 +191,18 @@ public:
 
 private:
     void run_once() {
-        // 为了科学可复现，每次运行前恢复初值，再执行原地更新循环。
-        a_work_ = a_base_;
-        const auto& b = (*in_)[p4_.b];
-        const auto& c = (*in_)[p4_.c];
-        const auto& d = (*in_)[p4_.d];
+        // Keep reproducibility: restore A into output each run, then mutate in-place.
+        if (!a_base_.empty()) {
+            std::memcpy(out_.data(), a_base_.data(), sizeof(T) * n_);
+        }
+        const T* bp = (*in_)[p4_.b].data();
+        const T* cp = (*in_)[p4_.c].data();
+        const T* dp = (*in_)[p4_.d].data();
+        T* ap = out_.data();
 
         for (size_t i = 0; i < n_; ++i) {
-            a_work_[i] = (a_work_[i] + b[i]) * c[i] - d[i];
+            ap[i] = (ap[i] + bp[i]) * cp[i] - dp[i];
         }
-        out_ = a_work_;
     }
 
     double sample_guard() const {
@@ -213,8 +221,8 @@ private:
     std::string reason_;
     ChunkPipeline4Pattern p4_{};
     std::vector<T> a_base_;
-    std::vector<T> a_work_;
     std::vector<T> out_;
 };
 
 } // namespace exprbench
+

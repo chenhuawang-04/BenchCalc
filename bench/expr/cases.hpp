@@ -68,19 +68,22 @@ inline RunConfig preset_run_cfg(const std::string& preset, bool strict) {
         c.iterations = strict ? 8 : 5;
         c.target_ms = strict ? 50.0 : 25.0;
         c.max_repeat = 16;
+        c.randomize_method_order = true;
         return c;
     }
     if (preset == "ci") {
-        c.warmup = strict ? 2 : 1;
-        c.iterations = strict ? 10 : 8;
-        c.target_ms = strict ? 55.0 : 35.0;
-        c.max_repeat = 16;
+        c.warmup = strict ? 4 : 3;
+        c.iterations = strict ? 25 : 18;
+        c.target_ms = strict ? 220.0 : 160.0;
+        c.max_repeat = strict ? 80 : 64;
+        c.randomize_method_order = true;
         return c;
     }
-    c.warmup = strict ? 3 : 2;
-    c.iterations = strict ? 14 : 10;
-    c.target_ms = strict ? 60.0 : 45.0;
-    c.max_repeat = 20;
+    c.warmup = strict ? 5 : 4;
+    c.iterations = strict ? 30 : 22;
+    c.target_ms = strict ? 260.0 : 200.0;
+    c.max_repeat = strict ? 96 : 72;
+    c.randomize_method_order = true;
     return c;
 }
 
@@ -94,4 +97,3 @@ inline const char* to_string(InputProfile p) {
 }
 
 } // namespace exprbench
-

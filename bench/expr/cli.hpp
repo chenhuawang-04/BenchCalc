@@ -29,9 +29,23 @@ inline CliOptions parse_args(int argc, char** argv) {
         else if (starts_with(a, "--threads=")) o.threads = std::stoi(a.substr(10));
         else if (a == "--seed") o.seed = static_cast<uint32_t>(std::stoul(read("--seed")));
         else if (starts_with(a, "--seed=")) o.seed = static_cast<uint32_t>(std::stoul(a.substr(7)));
+        else if (a == "--warmup") o.warmup = std::stoi(read("--warmup"));
+        else if (starts_with(a, "--warmup=")) o.warmup = std::stoi(a.substr(9));
+        else if (a == "--iterations") o.iterations = std::stoi(read("--iterations"));
+        else if (starts_with(a, "--iterations=")) o.iterations = std::stoi(a.substr(13));
+        else if (a == "--target-ms") o.target_ms = std::stod(read("--target-ms"));
+        else if (starts_with(a, "--target-ms=")) o.target_ms = std::stod(a.substr(12));
+        else if (a == "--max-repeat") o.max_repeat = std::stoi(read("--max-repeat"));
+        else if (starts_with(a, "--max-repeat=")) o.max_repeat = std::stoi(a.substr(13));
+        else if (a == "--no-randomize-order") o.randomize_method_order = false;
+        else if (a == "--randomize-order") o.randomize_method_order = true;
+        else if (a == "--pin-cpu") o.pin_cpu = true;
+        else if (a == "--high-priority") o.high_priority = true;
         else if (a == "--help" || a == "-h") {
             std::cout << "expr_method_bench --preset quick|ci|full [--case key] [--csv out.csv] [--strict] "
-                         "[--strict-cv-threshold x] [--threads n] [--seed n]\n";
+                         "[--strict-cv-threshold x] [--threads n] [--seed n] "
+                         "[--warmup n] [--iterations n] [--target-ms x] [--max-repeat n] "
+                         "[--randomize-order|--no-randomize-order] [--pin-cpu] [--high-priority]\n";
             std::exit(0);
         } else {
             throw std::runtime_error("unknown arg: " + a);
@@ -45,6 +59,18 @@ inline CliOptions parse_args(int argc, char** argv) {
     }
     if (o.threads && *o.threads <= 0) {
         throw std::runtime_error("threads must be > 0");
+    }
+    if (o.warmup && *o.warmup < 0) {
+        throw std::runtime_error("warmup must be >= 0");
+    }
+    if (o.iterations && *o.iterations <= 0) {
+        throw std::runtime_error("iterations must be > 0");
+    }
+    if (o.max_repeat && *o.max_repeat <= 0) {
+        throw std::runtime_error("max-repeat must be > 0");
+    }
+    if (o.target_ms && (!std::isfinite(*o.target_ms) || *o.target_ms <= 0.0)) {
+        throw std::runtime_error("target-ms must be finite and > 0");
     }
     return o;
 }

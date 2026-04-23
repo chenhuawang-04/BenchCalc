@@ -172,53 +172,87 @@ std::vector<MethodResult<T>> run_case_typed(const CaseConfig& cc, const RunConfi
         out.push_back(std::move(mr));
     };
 
-    {
+    std::vector<std::function<void()>> tasks;
+    tasks.reserve(12);
+    tasks.push_back([&] {
         HardcodedInlineMethod<T> m;
         run_one(m);
-    }
-    {
-        PlainLoop4Method<T> m; // 你要求的“最普通 for 循环四数组链式计算”
+    });
+    tasks.push_back([&] {
+        PlainLoop4Method<T> m;
         run_one(m);
-    }
-    {
-        PlainInplaceAmsMethod<T> m; // 你要求的“a[i]=... ”原地硬编码对照
+    });
+    tasks.push_back([&] {
+        PlainInplaceAmsMethod<T> m;
         run_one(m);
-    }
-    {
-        HardcodedInlineExactAmsMethod<T> m; // 纯内联上限：仅 ((a+b)*c)-d
+    });
+    tasks.push_back([&] {
+        HardcodedInlineExactAmsMethod<T> m;
         run_one(m);
-    }
-    {
-        ChunkPipelineMethod<T> m; // 既有 chunk 方案
+    });
+    tasks.push_back([&] {
+        ChunkPipelineMethod<T> m;
         run_one(m);
-    }
-    {
-        ChunkPipelineFixed256Method<T> m; // 固定 chunk 对照
+    });
+    tasks.push_back([&] {
+        ChunkPipelineFixed256Method<T> m;
         run_one(m);
-    }
-    {
-        ChunkPipelinePeakMethod<T> m; // 补强 chunk 方案
+    });
+    tasks.push_back([&] {
+        ChunkPipelinePeakMethod<T> m;
         run_one(m);
-    }
-    {
+    });
+    tasks.push_back([&] {
         GraphFusedMethod<T> m;
         run_one(m);
-    }
-    {
+    });
+    tasks.push_back([&] {
         VmMethod<T> m;
         run_one(m);
-    }
+    });
 #ifdef _WIN32
-    {
-        OpenCLDynamicKernelMethod<T> m(false); // GPU peak
+    tasks.push_back([&] {
+        OpenCLDynamicKernelMethod<T> m(false);
         run_one(m);
-    }
-    {
-        OpenCLDynamicKernelMethod<T> m(true); // GPU e2e
+    });
+    tasks.push_back([&] {
+        OpenCLDynamicKernelMethod<T> m(true);
         run_one(m);
-    }
+    });
 #endif
+
+    if (rc.randomize_method_order) {
+        std::mt19937 rng(rc.seed ^ static_cast<uint32_t>(cc.data_size) ^ static_cast<uint32_t>(threads * 131));
+        std::shuffle(tasks.begin(), tasks.end(), rng);
+    }
+    for (auto& task : tasks) task();
+
+    auto rank = [](const std::string& name) -> int {
+        static const std::unordered_map<std::string, int> kRank = {
+            {"hardcoded_inline", 10},
+            {"hardcoded_plain_loop4", 20},
+            {"hardcoded_plain_inplace_ams", 30},
+            {"hardcoded_inline_exact_ams", 40},
+            {"chunk_pipeline_nonjit", 50},
+            {"chunk_pipeline_nonjit_fixed256", 60},
+            {"chunk_pipeline_nonjit_peak", 70},
+            {"graph_fused_kernellib", 80},
+            {"vm_register", 90},
+            {"gpu_dynamic_kernel_peak", 100},
+            {"gpu_dynamic_kernel_e2e", 110},
+        };
+        auto it = kRank.find(name);
+        return (it == kRank.end()) ? 9999 : it->second;
+    };
+
+    std::stable_sort(out.begin(), out.end(), [&](const auto& a, const auto& b) {
+        int ra = rank(a.method), rb = rank(b.method);
+        if (ra != rb) return ra < rb;
+        return a.method < b.method;
+    });
+
     return out;
 }
 
 } // namespace exprbench
+

@@ -44,6 +44,7 @@ struct RunConfig {
     double target_ms = 40.0;
     int max_repeat = 16;
     uint32_t seed = 42;
+    bool randomize_method_order = true;
 };
 
 struct CliOptions {
@@ -54,6 +55,13 @@ struct CliOptions {
     double strict_cv_threshold = 20.0;
     std::optional<int> threads;
     std::optional<uint32_t> seed;
+    std::optional<int> warmup;
+    std::optional<int> iterations;
+    std::optional<double> target_ms;
+    std::optional<int> max_repeat;
+    bool randomize_method_order = true;
+    bool pin_cpu = false;
+    bool high_priority = false;
 };
 
 } // namespace exprbench

@@ -68,7 +68,10 @@ jobs:
         shell: pwsh
         run: |
           $bin = if (Test-Path "./build/expr_method_bench.exe") { "./build/expr_method_bench.exe" } else { "./build/expr_method_bench" }
-          & $bin --preset quick --case expr_chunkpipe_64k_f64 --seed 42 --threads 2 --csv expr_quick_${{ matrix.name }}.csv
+          & $bin --preset quick --case expr_chunkpipe_64k_f64 --seed 42 --threads 2 `
+            --warmup 2 --iterations 12 --target-ms 80 --max-repeat 48 `
+            --randomize-order --pin-cpu --high-priority `
+            --csv expr_quick_${{ matrix.name }}.csv
 
       - name: Upload quick csv
         uses: actions/upload-artifact@v5

@@ -5,6 +5,22 @@
 
 ---
 
+## Framework Upgrade Status (Applied)
+
+The benchmark framework has been upgraded with the following rigor/performance improvements:
+
+- multi-case/multi-thread **matrix workflow** (`.github/workflows/benchmark-matrix.yml`)
+- independent **process-level repeats** in CI matrix runs
+- per-method **95% CI** fields exported to CSV (`ci95_low_ms`, `ci95_high_ms`, `ci95_half_ms`)
+- optional runtime controls: `--pin-cpu`, `--high-priority`, randomized method execution order
+- reusable thread runtime for `parallel_for` (reduces thread create/join overhead)
+- chunk tuning cache + VM plan cache + graph generic preallocation
+- optimized plain in-place baseline (removed redundant copy path)
+
+These upgrades are additive; old and new methods remain shown in parallel.
+
+---
+
 ## 1) Data Source and Scope
 
 This report is based on CI artifacts from:
@@ -206,3 +222,9 @@ Trigger CI:
 gh workflow run ci-multi-platform.yml --ref master
 ```
 
+Run full matrix benchmark workflow (recommended for scientific comparison):
+
+```bash
+gh workflow run benchmark-matrix.yml --ref master \
+  -f process_repeats=3 -f preset=ci -f run_gpu_lane=false
+```

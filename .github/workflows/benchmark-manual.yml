@@ -68,7 +68,10 @@ jobs:
           $bin = if (Test-Path "./build/expr_method_bench.exe") { "./build/expr_method_bench.exe" } else { "./build/expr_method_bench" }
           $strictArgs = @()
           if ("${{ inputs.strict }}" -eq "true") { $strictArgs += "--strict" }
-          & $bin --preset "${{ inputs.preset }}" --threads "${{ inputs.threads }}" --seed "${{ inputs.seed }}" --csv "expr_${{ matrix.name }}_${{ inputs.preset }}.csv" @strictArgs
+          & $bin --preset "${{ inputs.preset }}" --threads "${{ inputs.threads }}" --seed "${{ inputs.seed }}" `
+            --warmup 3 --iterations 20 --target-ms 180 --max-repeat 64 `
+            --randomize-order --pin-cpu --high-priority `
+            --csv "expr_${{ matrix.name }}_${{ inputs.preset }}.csv" @strictArgs
 
       - name: Upload benchmark csv
         uses: actions/upload-artifact@v5

@@ -20,7 +20,10 @@ public:
         out_.assign(n_, T{});
         instructions_.clear();
         reg_count_ = 0;
-        root_ = compile_node(prog_->root);
+        if (!load_cached_plan()) {
+            root_ = compile_node(prog_->root);
+            store_plan_cache();
+        }
         avail_ = true;
         reason_.clear();
         return true;
@@ -52,6 +55,46 @@ private:
         Operand b;
         bool unary = false;
     };
+
+    struct Plan {
+        std::vector<Inst> instructions;
+        int reg_count = 0;
+        Operand root;
+    };
+
+    std::string cache_key() const {
+        return prog_ ? prog_->expr_string : std::string{};
+    }
+
+    bool load_cached_plan() {
+        const std::string key = cache_key();
+        if (key.empty()) return false;
+        std::lock_guard<std::mutex> lk(cache_mutex());
+        auto& map = plan_cache();
+        auto it = map.find(key);
+        if (it == map.end()) return false;
+        instructions_ = it->second.instructions;
+        reg_count_ = it->second.reg_count;
+        root_ = it->second.root;
+        return true;
+    }
+
+    void store_plan_cache() {
+        const std::string key = cache_key();
+        if (key.empty()) return;
+        std::lock_guard<std::mutex> lk(cache_mutex());
+        plan_cache()[key] = Plan{instructions_, reg_count_, root_};
+    }
+
+    static std::unordered_map<std::string, Plan>& plan_cache() {
+        static std::unordered_map<std::string, Plan> cache;
+        return cache;
+    }
+
+    static std::mutex& cache_mutex() {
+        static std::mutex mu;
+        return mu;
+    }
 
     Operand compile_node(int id) {
         const Node& n = prog_->nodes[id];

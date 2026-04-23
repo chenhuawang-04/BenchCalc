@@ -4,6 +4,9 @@
 
 # Local benchmark outputs
 /*.csv
+/cloud_artifacts_*/
+/raw/
+/out/
 
 # Windows binaries generated locally
 /*.exe
@@ -15,4 +18,3 @@
 /cmake_install.cmake
 /compile_commands.json
 /Testing/
-
